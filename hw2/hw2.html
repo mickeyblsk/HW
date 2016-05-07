@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+#info {
+  position: absolute;
+  top: 0px;
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  color: #ffff00
+}
+
+#gui {
+  position: absolute;
+  top: 50px;
+  right: 10px;
+  height: 500px;
+  //text-align: center;
+}
+
+body {
+  overflow: hidden;
+}
+</style>
+</head>
+
+<body> 
+<div id="info">I4B09 Hw2
+  <br>
+  <br> Danboard!
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r74/three.min.js"></script>
+<script src="https://dl.dropboxusercontent.com/u/3587259/Code/Threejs/OrbitControls.js">
+
+
+</script>
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5/dat.gui.min.js"></script>
+
+<script>
+var camera, scene, renderer;
+var controls; 
+var box, frame;
+var angle = 0,angle2 = 0;
+
+
+FizzyText = {
+		  L_ArmAngle : 0.8,
+      R_ArmAngle : 0.8,
+      L_ArmAngleZ : 0.8,
+      R_ArmAngleZ : 0.8,
+      L_LegAngle : 0.8,
+      R_LegAngle : 0.8      
+		};
+			
+function loadJSON(){
+      	return{
+        "preset": "1",
+        "remembered": {
+          "pose1": {
+            "0": {
+              "L_ArmAngle": 1.016157635427808,
+              "R_ArmAngle": -0.7855341564798195,
+              "L_ArmAngleZ": 1.0854534735781005,
+              "R_ArmAngleZ": 2.2634827221330873,
+              "L_LegAngle": -1.4784925379827527,
+              "R_LegAngle": 0.808270120976927,
+              "pose": 1
+            }
+          },
+          "pose2": {
+            "0": {
+              "L_ArmAngle": 3.141592653589793,
+              "R_ArmAngle": 0.1153117394739942,
+              "L_ArmAngleZ": 0.4617909302254608,
+              "R_ArmAngleZ": 1.9862993695319142,
+              "L_LegAngle": 0,
+              "R_LegAngle": 0,
+              "pose": 1
+            }
+          },
+          "pose3": {
+            "0": {
+              "L_ArmAngle": -1.9635634050348063,
+              "R_ArmAngle": -2.3793384339365664,
+              "L_ArmAngleZ": -1.2013091853815794,
+              "R_ArmAngleZ": -1.894267566884513,
+              "L_LegAngle": 1.9862993695319142,
+              "R_LegAngle": -0.7855341564798195,
+              "pose": 1
+            }
+          }
+        },
+        "closed": false,
+        "folders": {}
+      }
+      
+      }
+      var gui = new dat.GUI({ load: loadJSON() ,preset: 'pose1'});
+      gui.remember(FizzyText);
+      
+      var arm = gui.addFolder('Arm Part');
+			arm.add(FizzyText, 'L_ArmAngle', -Math.PI, Math.PI);
+      arm.add(FizzyText, 'R_ArmAngle', -Math.PI, Math.PI);
+      arm.add(FizzyText, 'L_ArmAngleZ', -Math.PI, Math.PI);
+      arm.add(FizzyText, 'R_ArmAngleZ', -Math.PI, Math.PI);
+      var leg = gui.addFolder('Leg Part');
+      leg.add(FizzyText, 'L_LegAngle', -Math.PI, Math.PI);
+      leg.add(FizzyText, 'R_LegAngle', -Math.PI, Math.PI);
+      
+
+init();
+animate();
+ 
+			
+      
+      
+function putLight(){
+	var light = new THREE.PointLight(0xffffff, 1);
+  light.position.set(150, 150, 150);
+  scene.add(light);
+  var amblight = new THREE.AmbientLight(0x404040); // soft white light
+  scene.add(amblight);
+}
+
+function init() {
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
+  camera.position.z = 600;
+  camera.position.x = 600;
+  camera.position.y = 400;
+  scene.add(camera);
+
+  var gridXZ = new THREE.GridHelper(500, 50);
+  gridXZ.setColors(new THREE.Color(0xff00ff), new THREE.Color(0xAAAAAA));
+  scene.add(gridXZ);
+
+  renderer = new THREE.WebGLRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x888888);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  putLight();
+  document.body.appendChild(renderer.domElement);
+  window.addEventListener('resize', onWindowResize, false);
+  
+  var head = drawHead();
+  var body = drawBody();
+  var armRight = drawArm();
+  var armLeft = drawArm();
+  var legRight = drawLeg();
+  var legLeft = drawLeg();
+  
+  legJointRight = makeJoint(legRight,9,40+10,0);
+  legJointLeft = makeJoint(legLeft,-9,40+10,0);
+  
+  armJointRight = makeJoint(armRight,36/2+12/2-10,39+60+10,0);
+  armJointRight.rotation.z=Math.PI-(Math.PI/3);
+  armJointLeft = makeJoint(armLeft,-(36/2+12/2-10),39+60+10,0);
+  armJointLeft.rotation.z=(Math.PI/3);
+  
+  table = new THREE.Object3D();
+  circle = new THREE.Object3D();
+  
+  table.add(head);
+  table.add(body);
+  table.add(armJointRight);
+  table.add(armJointLeft);
+  table.add(legJointRight);
+  table.add(legJointLeft);
+  
+  
+  circle.add(table);
+  
+  scene.add(circle);
+  
+  
+}
+function drawExample(){
+	var boxX=52,boxY=48,boxZ=26;
+  var lid = makeLid(boxX, boxZ);
+  boxExample = makeBox(boxX, boxY, boxZ);
+
+  frame = new THREE.Object3D();
+  frame.position.set(0, boxY/2, -(boxZ/2));
+  boxExample.add(frame);
+  frame.add(lid);
+  scene.add(boxExample);
+
+	boxExample.position.y = (boxY/2);
+  boxExample.position.x = -(100-(boxX/2));
+  boxExample.position.z = -(100-(boxZ/2));
+}
+
+function drawHead(){
+	var headX=73,headY=48,headZ=26;
+  head = makeBox(headX, headY, headZ);
+	head.material.materials[2]=new THREE.MeshLambertMaterial({
+    side:THREE.DoubleSide, color: 0xbea07a
+  });
+
+	head.position.y = (headY/2) + 60 + 40;
+  
+  return head;
+}
+
+function drawBody(){
+	var bodyX=36,bodyY=60,bodyZ=37;
+  var bodyLid = makeLid(bodyX, bodyZ/2);
+  body = makeBox(bodyX, bodyY, bodyZ);
+console.log(body);
+  bodyFrame = new THREE.Object3D();
+  bodyFrame.position.set(0, -bodyY/2, (bodyZ/2));
+  body.add(bodyFrame);
+  bodyFrame.add(bodyLid);
+
+	body.position.y = (bodyY/2) + 40;
+  body.material.materials[2]=new THREE.MeshLambertMaterial({side:THREE.DoubleSide, color: 0xbea07a});
+  body.material.materials[3]=new THREE.MeshLambertMaterial({visible:false});
+  
+  return body;
+}
+
+function drawArm(){
+	var armX=12,armY=39,armZ=14;
+  arm = makeBox(armX, armY, armZ);
+
+  scene.add(arm);
+	arm.material.materials[2]=new THREE.MeshLambertMaterial({side:THREE.DoubleSide, color: 0xbea07a});
+  
+  arm.position.x = -(armY/2)-10;
+  
+  return arm;
+}
+
+function drawLeg(){
+	var legX=15,legY=40,legZ=33;
+  leg = makeBox(legX, legY, legZ);
+
+	leg.material.materials[2]=new THREE.MeshLambertMaterial({side:THREE.DoubleSide, color: 0xbea07a});
+  
+	leg.position.x = -(legY/2)-10;
+  
+  
+  return leg;
+}
+
+function makeJoint(part, x, y, z){
+ var 
+jointGeometry = new THREE.CylinderGeometry( 10, 10, 15, 16 );
+	var jointMaterial = new THREE.MeshBasicMaterial( {wireframe: true, color: 0xbea07a} );
+	Joint = new THREE.Mesh( jointGeometry, jointMaterial );
+  Joint.rotation.z=Math.PI/2;
+  part.rotation.z=-Math.PI/2;
+	Joint.add( part );
+  Joint.position.set(x,y,z);
+
+	return Joint;
+}
+
+function makeBox(x, y, z) {
+	var materials = [];
+  // must give 6 materials for box geometry
+  materials.push(new THREE.MeshLambertMaterial({side:THREE.DoubleSide, color: 0xbea07a}));
+  materials.push(new THREE.MeshLambertMaterial({side:THREE.DoubleSide, color: 0xbea07a}));
+  materials.push(new THREE.MeshLambertMaterial({visible:false}));
+  materials.push(new THREE.MeshLambertMaterial({side:THREE.DoubleSide, color: 0xbea07a}));
+  materials.push(new THREE.MeshLambertMaterial({side:THREE.DoubleSide, color: 0xbea07a}));
+  materials.push(new THREE.MeshLambertMaterial({side:THREE.DoubleSide, color: 0xbea07a}));
+	
+  var boxGeometry = new THREE.BoxGeometry(x, y, z);
+  var boxMaterial = new THREE.MeshFaceMaterial(materials);
+  
+  return new THREE.Mesh(boxGeometry,boxMaterial);
+}
+
+function makeLid(x, z) {
+  var lid = new THREE.Object3D();
+  var lidPlane = new THREE.Mesh(new THREE.PlaneGeometry(x, z),
+    new THREE.MeshLambertMaterial({
+      side: THREE.DoubleSide
+    }));
+  lid.add(lidPlane);
+  lid.position.z = -(z/2);
+  lid.rotation.x = -Math.PI / 2;
+  return lid;
+}
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function animate() {
+  controls.update();
+  animate.sign = (animate.sign === undefined) ? 1 : animate.sign;
+  if (angle < -Math.PI/18 || angle > Math.PI/18)
+  	animate.sign *= -1;
+  angle += animate.sign*0.01;
+  
+  animate.cos = (animate.cos === undefined) ? -1 : animate.cos;
+  if (angle2 < -Math.PI/18 || angle2 > Math.PI/18)
+  	animate.cos *= -1;
+  angle2 += animate.cos*0.007;
+  
+  a= (FizzyText.R_LegAngle>FizzyText.L_LegAngle ? FizzyText.L_LegAngle:FizzyText.R_LegAngle);
+  table.position.y=-a*2;
+  
+  legJointRight.rotation.x = FizzyText.R_LegAngle;
+  legJointLeft.rotation.x = FizzyText.L_LegAngle;
+  armJointRight.rotation.x = FizzyText.R_ArmAngle;
+	armJointLeft.rotation.x = FizzyText.L_ArmAngle;
+  
+  armJointRight.rotation.z = FizzyText.R_ArmAngleZ;
+	armJointLeft.rotation.z = FizzyText.L_ArmAngleZ;
+  
+ requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+
+</script>
+
+</body>
+
+</html>
